@@ -25,44 +25,43 @@ import (
 	"strconv"
 	"strings"
 
-	"time"
 	"log"
+	"time"
 )
 
 var blockBelow *int
 var junkBelow *int
 var slowFactor *int
 
-
 type session struct {
 	id string
 
 	category int8
-	score int8
+	score    int8
 
 	first_line bool
 }
 
 var sessions = make(map[string]session)
 
-var reporters = map[string]func(string, []string) {
-	"link-connect": linkConnect,
+var reporters = map[string]func(string, []string){
+	"link-connect":    linkConnect,
 	"link-disconnect": linkDisconnect,
 }
 
-var filters = map[string]func(string, []string) {
+var filters = map[string]func(string, []string){
 	"connect": filterConnect,
 
-	"helo": delayedAnswer,
-	"ehlo": delayedAnswer,
-	"starttls": delayedAnswer,
-	"auth": delayedAnswer,
+	"helo":      delayedAnswer,
+	"ehlo":      delayedAnswer,
+	"starttls":  delayedAnswer,
+	"auth":      delayedAnswer,
 	"mail-from": delayedAnswer,
-	"rcpt-to": delayedAnswer,
+	"rcpt-to":   delayedAnswer,
 	"data-line": dataline,
-	"data": delayedAnswer,
-	"commit": delayedAnswer,
-	"quit": delayedAnswer,
+	"data":      delayedAnswer,
+	"commit":    delayedAnswer,
+	"quit":      delayedAnswer,
 }
 
 func linkConnect(sessionId string, params []string) {
@@ -95,7 +94,7 @@ func linkConnect(sessionId string, params []string) {
 
 	s.category = int8(category)
 	s.score = int8(score)
-	
+
 	fmt.Fprintf(os.Stderr, "link-connect addr=%s score=%s\n", addr, resolved)
 	sessions[sessionId] = s
 }
@@ -107,24 +106,24 @@ func linkDisconnect(sessionId string, params []string) {
 	delete(sessions, sessionId)
 }
 
-func filterConnect(sessionId string, params[] string) {
+func filterConnect(sessionId string, params []string) {
 	token := params[0]
 	s := sessions[sessionId]
 	sessions[sessionId] = s
 
-	if (s.score != -1 && s.score < int8(*blockBelow)) {
+	if s.score != -1 && s.score < int8(*blockBelow) {
 		fmt.Printf("filter-result|%s|%s|disconnect|550 your IP reputation is too low for this MX\n", token, sessionId)
 	} else {
 		delayedAnswer(sessionId, params)
 	}
 }
 
-func delayedAnswer(sessionId string, params[] string) {
+func delayedAnswer(sessionId string, params []string) {
 	token := params[0]
 	s := sessions[sessionId]
 
 	// no slow factor, neutral or 100% good IP
-	if (*slowFactor == -1 || s.score == -1 || s.score == 100) {
+	if *slowFactor == -1 || s.score == -1 || s.score == 100 {
 		fmt.Printf("filter-result|%s|%s|proceed\n", token, sessionId)
 		return
 	}
@@ -134,13 +133,13 @@ func delayedAnswer(sessionId string, params[] string) {
 	go waitAndProceed(sessionId, token, delay)
 }
 
-func dataline(sessionId string, params[] string) {
+func dataline(sessionId string, params []string) {
 	token := params[0]
 	line := strings.Join(params[1:], "|")
 
 	s := sessions[sessionId]
 	if s.first_line == true {
-		if (s.score != -1 && s.score < int8(*junkBelow)) {
+		if s.score != -1 && s.score < int8(*junkBelow) {
 			fmt.Printf("filter-dataline|%s|%s|X-Spam: Yes\n", token, sessionId)
 		}
 		s.first_line = false
@@ -148,7 +147,6 @@ func dataline(sessionId string, params[] string) {
 	sessions[sessionId] = s
 	fmt.Printf("filter-dataline|%s|%s|%s\n", token, sessionId, line)
 }
-
 
 func waitAndProceed(sessionId string, token string, delay int) {
 	time.Sleep(time.Duration(delay) * time.Millisecond)
@@ -163,7 +161,7 @@ func filterInit() {
 	for k := range filters {
 		fmt.Printf("register|filter|smtp-in|%s\n", k)
 	}
-	fmt.Println("register|ready")	
+	fmt.Println("register|ready")
 }
 
 func trigger(currentSlice map[string]func(string, []string), atoms []string) {
@@ -206,7 +204,7 @@ func main() {
 		if !scanner.Scan() {
 			os.Exit(0)
 		}
-		
+
 		atoms := strings.Split(scanner.Text(), "|")
 		if len(atoms) < 6 {
 			os.Exit(1)
