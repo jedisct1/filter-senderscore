@@ -140,7 +140,7 @@ func dataline(sessionId string, params []string) {
 		if s.score != -1 {
 			fmt.Printf("filter-dataline|%s|%s|X-SenderScore: %d (category: %d)\n", token, sessionId, s.score, s.category)
 		} else {
-			fmt.Printf("filter-dataline|%s|%s|X-SenderScore: none\n", token, sessionId, s.score)
+			fmt.Printf("filter-dataline|%s|%s|X-SenderScore: none\n", token, sessionId)
 		}
 		if s.score != -1 && s.score < int8(*junkBelow) {
 			fmt.Printf("filter-dataline|%s|%s|X-Spam: Yes\n", token, sessionId)
