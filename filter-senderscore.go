@@ -50,14 +50,13 @@ var reporters = map[string]func(string, []string){
 }
 
 var filters = map[string]func(string, []string){
-	"connect": filterConnect,
-
+	"connect":   delayedAnswer,
 	"helo":      delayedAnswer,
 	"ehlo":      delayedAnswer,
 	"starttls":  delayedAnswer,
 	"auth":      delayedAnswer,
 	"mail-from": delayedAnswer,
-	"rcpt-to":   delayedAnswer,
+	"rcpt-to":   filterRcptTo,
 	"data-line": dataline,
 	"data":      delayedAnswer,
 	"commit":    delayedAnswer,
@@ -106,10 +105,9 @@ func linkDisconnect(sessionId string, params []string) {
 	delete(sessions, sessionId)
 }
 
-func filterConnect(sessionId string, params []string) {
+func filterRcptTo(sessionId string, params []string) {
 	token := params[0]
 	s := sessions[sessionId]
-	sessions[sessionId] = s
 
 	if s.score != -1 && s.score < int8(*blockBelow) {
 		fmt.Printf("filter-result|%s|%s|disconnect|550 your IP reputation is too low for this MX\n", token, sessionId)
@@ -139,6 +137,11 @@ func dataline(sessionId string, params []string) {
 
 	s := sessions[sessionId]
 	if s.first_line == true {
+		if s.score != -1 {
+			fmt.Printf("filter-dataline|%s|%s|X-SenderScore: %d (category: %d)\n", token, sessionId, s.score, s.category)
+		} else {
+			fmt.Printf("filter-dataline|%s|%s|X-SenderScore: none\n", token, sessionId, s.score)
+		}
 		if s.score != -1 && s.score < int8(*junkBelow) {
 			fmt.Printf("filter-dataline|%s|%s|X-Spam: Yes\n", token, sessionId)
 		}
